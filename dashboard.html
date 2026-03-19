@@ -925,13 +925,19 @@ async function sheetCall(action, payload){
   try{
     const res = await fetch(APPS_SCRIPT_URL, {
       method:'POST',
+      redirect:'follow',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action, ...payload}),
     });
-    const j = await res.json();
-    if(!j.ok) throw new Error(j.error);
+    const text = await res.text();
+    let j;
+    try{ j = JSON.parse(text); }
+    catch(pe){ throw new Error('תגובה לא תקינה: ' + text.slice(0,80)); }
+    if(!j.ok) throw new Error(j.error || 'שגיאה לא ידועה');
     return true;
   }catch(e){
     console.warn('Apps Script error:', e.message);
+    showToast('⚠️ שגיאת שמירה: ' + e.message);
     return false;
   }
 }
