@@ -249,6 +249,36 @@ tr:hover td{background:#f8fafc}
 .aps-indicator.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
 .aps-indicator.err{background:#fef2f2;border-color:#fecaca;color:var(--red)}
 
+/* NOTIFICATION MODAL */
+.notif-overlay{position:fixed;inset:0;z-index:550;background:rgba(15,23,42,.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:16px}
+.notif-overlay.open{display:flex}
+.notif-box{background:#fff;border-radius:16px;width:100%;max-width:500px;box-shadow:0 8px 40px rgba(0,0,0,.2);overflow:hidden;direction:rtl}
+.notif-head{padding:16px 20px;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between}
+.notif-head h3{font-size:1rem;font-weight:800;color:var(--t1)}
+.notif-body{padding:18px 20px;max-height:70vh;overflow-y:auto}
+.notif-field{margin-bottom:14px}
+.notif-field label{display:block;font-size:.7rem;font-weight:700;color:var(--t3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.notif-field input[type=text],.notif-field input[type=number],.notif-field textarea{width:100%;padding:9px 11px;border:1.5px solid var(--br);border-radius:var(--r2);font-size:.85rem;font-family:'Heebo',sans-serif;transition:border-color .2s;color:var(--t1);background:#fff}
+.notif-field input[type=text]:focus,.notif-field input[type=number]:focus,.notif-field textarea:focus{outline:none;border-color:var(--acc)}
+.notif-field textarea{resize:vertical;min-height:70px;direction:ltr}
+.notif-inline{display:flex;align-items:center;gap:10px}
+.notif-inline input[type=checkbox]{width:16px;height:16px;accent-color:var(--acc);cursor:pointer;flex-shrink:0}
+.notif-inline label{font-size:.85rem;font-weight:400;color:var(--t2);letter-spacing:0;text-transform:none;cursor:pointer;margin-bottom:0}
+.notif-foot{padding:12px 20px;border-top:1px solid var(--br);display:flex;gap:8px;flex-wrap:wrap}
+.notif-btn-send{flex:1;padding:9px 10px;background:var(--ora);color:#fff;border:none;border-radius:var(--r2);font-size:.85rem;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;transition:all .15s}
+.notif-btn-send:hover{filter:brightness(1.08)}
+.notif-btn-send:disabled{opacity:.5;cursor:not-allowed}
+.notif-btn-save{flex:1;padding:9px 10px;background:var(--acc);color:#fff;border:none;border-radius:var(--r2);font-size:.85rem;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;transition:all .15s}
+.notif-btn-save:hover{background:#1d4ed8}
+.notif-btn-cancel{padding:9px 16px;background:var(--s2);color:var(--t2);border:1px solid var(--br);border-radius:var(--r2);font-size:.85rem;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif}
+.notif-btn-cancel:hover{background:var(--s3)}
+.notif-preview{margin-top:8px;padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:.82rem;color:#92400e}
+.notif-last-sent{font-size:.75rem;color:var(--t3);margin-top:10px;text-align:center}
+.notif-doc-list{margin-top:8px;max-height:160px;overflow-y:auto;border:1px solid var(--br);border-radius:6px;font-size:.78rem}
+.notif-doc-list div{padding:5px 10px;border-bottom:1px solid var(--br);display:flex;gap:6px;align-items:baseline}
+.notif-doc-list div:last-child{border-bottom:none}
+.notif-doc-days{font-weight:700;color:var(--ora);flex-shrink:0}
+
 .empty{text-align:center;padding:60px 20px;color:var(--t3)}
 .ei{font-size:2.5rem;margin-bottom:10px;opacity:.3}
 .et{font-size:.9rem;font-weight:600;color:var(--t2);margin-bottom:4px}
@@ -307,6 +337,7 @@ tr:hover td{background:#f8fafc}
   <button class="tbtn" onclick="toggleSB()">☰</button>
   <button class="tbtn" id="arc-btn" onclick="toggleArchive()">📦 ארכיון <span id="arc-count" style="background:var(--gry);color:#fff;border-radius:8px;padding:1px 6px;font-size:.65rem;margin-right:3px"></span></button>
   <button id="scan-btn" onclick="triggerScan()" title="סרוק עכשיו" style="padding:5px 12px;border-radius:6px;border:1.5px solid var(--acc);background:#eff6ff;color:var(--acc);font-size:.75rem;cursor:pointer;font-family:Heebo,sans-serif;font-weight:600;transition:all .15s">🔄 סרוק עכשיו</button>
+  <button class="tbtn" id="notif-btn" onclick="openNotifModal()" title="הגדרות התראות" style="position:relative">🔔 התראות<span id="notif-badge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--ora);color:#fff;border-radius:50%;width:17px;height:17px;font-size:.6rem;font-weight:700;align-items:center;justify-content:center;line-height:1"></span></button>
   <button class="tbtn" onclick="doLogout()" title="התנתק">🚪</button>
 </div>
 
@@ -488,6 +519,8 @@ async function doLoad(silent){
     ALL.forEach(r=>{ if(r.client) selClients.add(r.client); });
     applyF();
     updateArchiveCount();
+    updateNotifBadge();
+    autoNotifCheck();
     document.getElementById('tsub').textContent=`${ALL.length} מסמכים · ${new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}`;
   }catch(e){document.getElementById('serr').style.display='block'}
   document.getElementById('loading').style.display='none';
@@ -1020,6 +1053,155 @@ function updateArchiveCount(){
 
 setInterval(()=>{if(ak&&sid)doLoad(true)},5*60*1000);
 window.addEventListener('resize',renderTable_or_cards);
+
+// ── stub עבור hook עתידי ──
+function applyOverrides(){}
+
+// ── התראות על מסמכים פוקעים ──
+const NOTIF_STORAGE_KEY = 'nirDashNotif';
+const NOTIF_LAST_SENT_KEY = 'nirDashNotifLastSent';
+
+function loadNotifSettings(){
+  try{ return JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY)||'{}'); }catch(e){ return {}; }
+}
+
+function openNotifModal(){
+  const s = loadNotifSettings();
+  document.getElementById('notif-emails').value = s.emails||'';
+  document.getElementById('notif-days-warn').value = s.daysWarn!=null ? s.daysWarn : 90;
+  document.getElementById('notif-days-crit').value = s.daysCrit!=null ? s.daysCrit : 0;
+  document.getElementById('notif-auto').checked = s.auto||false;
+  updateNotifPreview();
+  updateLastSentDisplay();
+  document.getElementById('notif-modal').classList.add('open');
+}
+
+function closeNotifModal(){
+  document.getElementById('notif-modal').classList.remove('open');
+}
+
+function saveNotifSettings(){
+  const s = {
+    emails: document.getElementById('notif-emails').value.trim(),
+    daysWarn: parseInt(document.getElementById('notif-days-warn').value)||90,
+    daysCrit: parseInt(document.getElementById('notif-days-crit').value)||0,
+    auto: document.getElementById('notif-auto').checked
+  };
+  localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(s));
+  closeNotifModal();
+  showToast('✅ הגדרות התראות נשמרו');
+  updateNotifBadge();
+}
+
+function getDocsForNotif(daysWarn, daysCrit){
+  const now = new Date().setHours(0,0,0,0);
+  const warn=[], crit=[];
+  ALL.filter(r=>!isArchived(r.expiry,r)).forEach(r=>{
+    const d = pd(r.expiry);
+    if(!d) return;
+    const remaining = Math.floor((d - now) / 86400000);
+    if(remaining >= 0 && remaining <= daysWarn) warn.push({...r, remaining});
+    if(daysCrit > 0 && remaining >= 0 && remaining <= daysCrit) crit.push({...r, remaining});
+  });
+  warn.sort((a,b)=>a.remaining-b.remaining);
+  return {warn, crit};
+}
+
+function updateNotifPreview(){
+  const daysWarn = parseInt(document.getElementById('notif-days-warn').value)||90;
+  const daysCrit = parseInt(document.getElementById('notif-days-crit').value)||0;
+  const {warn} = getDocsForNotif(daysWarn, daysCrit);
+  const preview = document.getElementById('notif-preview');
+  const previewText = document.getElementById('notif-preview-text');
+  const docList = document.getElementById('notif-doc-list');
+  const sendBtn = document.getElementById('notif-send-btn');
+  if(warn.length === 0){
+    preview.style.display='none';
+    sendBtn.disabled = false;
+    sendBtn.textContent = '📧 שלח עכשיו';
+    return;
+  }
+  preview.style.display='block';
+  previewText.innerHTML = `⚠️ <strong>${warn.length} מסמכים</strong> עם תוקף תוך ${daysWarn} ימים יכללו בהתראה:`;
+  if(warn.length > 0){
+    docList.style.display='block';
+    docList.innerHTML = warn.slice(0,8).map(r=>
+      `<div><span class="notif-doc-days">${r.remaining===0?'היום':r.remaining+'י\''}</span><span>${r.client} — ${r.docType}</span><span style="color:var(--t3);margin-right:auto;margin-left:0;font-size:.72rem">${r.expiry}</span></div>`
+    ).join('') + (warn.length>8?`<div style="color:var(--t3);text-align:center">ועוד ${warn.length-8}...</div>`:'');
+  } else {
+    docList.style.display='none';
+  }
+  sendBtn.disabled = false;
+  sendBtn.textContent = `📧 שלח (${warn.length} מסמכים)`;
+}
+
+function updateLastSentDisplay(){
+  const last = parseInt(localStorage.getItem(NOTIF_LAST_SENT_KEY)||'0');
+  const el = document.getElementById('notif-last-sent');
+  if(!last){ el.textContent=''; return; }
+  const diff = Date.now()-last;
+  const hrs = Math.floor(diff/3600000);
+  const mins = Math.floor((diff%3600000)/60000);
+  el.textContent = hrs>0 ? `שליחה אחרונה: לפני ${hrs} שע' ${mins} דק'` : `שליחה אחרונה: לפני ${mins} דקות`;
+}
+
+async function sendNotificationsNow(){
+  const s = loadNotifSettings();
+  const emails = (s.emails||'').split(',').map(e=>e.trim()).filter(Boolean);
+  if(!emails.length){
+    document.getElementById('notif-emails').focus();
+    showToast('⚠️ יש להזין לפחות כתובת מייל אחת');
+    return;
+  }
+  const daysWarn = s.daysWarn!=null ? s.daysWarn : 90;
+  const daysCrit = s.daysCrit||0;
+  const {warn, crit} = getDocsForNotif(daysWarn, daysCrit);
+  if(!warn.length && !crit.length){
+    closeNotifModal();
+    showToast('✅ אין מסמכים הדורשים התראה כרגע');
+    return;
+  }
+  const btn = document.getElementById('notif-send-btn');
+  btn.disabled=true; btn.textContent='⏳ שולח...';
+  closeNotifModal();
+  showToast('📧 שולח התראות...');
+  const payload = {
+    emails,
+    daysWarn,
+    docs: warn.map(r=>({client:r.client,location:r.location,docType:r.docType,expiry:r.expiry,remaining:r.remaining})),
+    critDocs: crit.map(r=>({client:r.client,location:r.location,docType:r.docType,expiry:r.expiry,remaining:r.remaining}))
+  };
+  const ok = await sheetCall('sendNotification', payload);
+  btn.disabled=false;
+  if(ok){
+    localStorage.setItem(NOTIF_LAST_SENT_KEY, String(Date.now()));
+    showToast(`✅ התראות נשלחו — ${warn.length} מסמכים`);
+    updateNotifBadge();
+  } else {
+    showToast('⚠️ שגיאה בשליחת מייל — בדוק את הגדרות Apps Script');
+  }
+}
+
+function updateNotifBadge(){
+  const s = loadNotifSettings();
+  const daysWarn = s.daysWarn!=null ? s.daysWarn : 90;
+  const {warn} = getDocsForNotif(daysWarn, 0);
+  const badge = document.getElementById('notif-badge');
+  if(warn.length>0){
+    badge.textContent = warn.length>99?'99+':warn.length;
+    badge.style.display='inline-flex';
+  } else {
+    badge.style.display='none';
+  }
+}
+
+async function autoNotifCheck(){
+  const s = loadNotifSettings();
+  if(!s.auto || !(s.emails||'').trim()) return;
+  const last = parseInt(localStorage.getItem(NOTIF_LAST_SENT_KEY)||'0');
+  if(Date.now()-last < 20*60*60*1000) return; // פחות מ-20 שעות — דלג
+  await sendNotificationsNow();
+}
 document.getElementById('th-expiry').classList.add('sorted');
 
 function toggleArchive(){
@@ -1104,6 +1286,46 @@ function toggleArchive(){
       <button class="em-btn em-restore" id="em-restore-btn" onclick="restoreRow()" style="display:none">↩️ שחזר</button>
       <button class="em-btn em-delete" onclick="deleteRow()">🗑️ מחק</button>
       <button class="em-btn em-cancel" onclick="closeEditModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION MODAL -->
+<div class="notif-overlay" id="notif-modal">
+  <div class="notif-box">
+    <div class="notif-head">
+      <h3>🔔 הגדרות התראות</h3>
+      <button class="em-close" onclick="closeNotifModal()">✕</button>
+    </div>
+    <div class="notif-body">
+      <div class="notif-field">
+        <label>כתובות מייל לשליחה (מופרדות בפסיק)</label>
+        <textarea id="notif-emails" placeholder="name@example.com, another@example.com" oninput="updateNotifPreview()"></textarea>
+      </div>
+      <div class="notif-field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label>ימים לפני פקיעה — צהוב (כתום)</label>
+          <input type="number" id="notif-days-warn" value="90" min="1" max="365" dir="ltr" oninput="updateNotifPreview()">
+        </div>
+        <div>
+          <label>ימים לפני פקיעה — אדום (קריטי)</label>
+          <input type="number" id="notif-days-crit" value="0" min="0" max="365" dir="ltr" oninput="updateNotifPreview()" placeholder="0 = לא כולל">
+        </div>
+      </div>
+      <div class="notif-field notif-inline">
+        <input type="checkbox" id="notif-auto">
+        <label for="notif-auto">שלח התראה אוטומטית פעם ביום עם טעינת הדשבורד</label>
+      </div>
+      <div id="notif-preview" style="display:none" class="notif-preview">
+        <div id="notif-preview-text"></div>
+        <div id="notif-doc-list" class="notif-doc-list" style="display:none"></div>
+      </div>
+      <div id="notif-last-sent" class="notif-last-sent"></div>
+    </div>
+    <div class="notif-foot">
+      <button class="notif-btn-send" id="notif-send-btn" onclick="sendNotificationsNow()">📧 שלח עכשיו</button>
+      <button class="notif-btn-save" onclick="saveNotifSettings()">💾 שמור הגדרות</button>
+      <button class="notif-btn-cancel" onclick="closeNotifModal()">ביטול</button>
     </div>
   </div>
 </div>
