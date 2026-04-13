@@ -1145,7 +1145,7 @@ function updateLastSentDisplay(){
   el.textContent = hrs>0 ? `שליחה אחרונה: לפני ${hrs} שע' ${mins} דק'` : `שליחה אחרונה: לפני ${mins} דקות`;
 }
 
-async function sendNotificationsNow(){
+function sendNotificationsNow(){
   const s = loadNotifSettings();
   const emails = (s.emails||'').split(',').map(e=>e.trim()).filter(Boolean);
   if(!emails.length){
@@ -1161,25 +1161,41 @@ async function sendNotificationsNow(){
     showToast('✅ אין מסמכים הדורשים התראה כרגע');
     return;
   }
-  const btn = document.getElementById('notif-send-btn');
-  btn.disabled=true; btn.textContent='⏳ שולח...';
-  closeNotifModal();
-  showToast('📧 שולח התראות...');
-  const payload = {
-    emails,
-    daysWarn,
-    docs: warn.map(r=>({client:r.client,location:r.location,docType:r.docType,expiry:r.expiry,remaining:r.remaining})),
-    critDocs: crit.map(r=>({client:r.client,location:r.location,docType:r.docType,expiry:r.expiry,remaining:r.remaining}))
-  };
-  const ok = await sheetCall('sendNotification', payload);
-  btn.disabled=false;
-  if(ok){
-    localStorage.setItem(NOTIF_LAST_SENT_KEY, String(Date.now()));
-    showToast(`✅ התראות נשלחו — ${warn.length} מסמכים`);
-    updateNotifBadge();
-  } else {
-    showToast('⚠️ שגיאה בשליחת מייל — בדוק את הגדרות Apps Script');
+
+  // ── בניית נושא ──
+  const subject = crit.length > 0
+    ? `דחוף! ניר הנדסה — ${crit.length} מסמכים קריטיים פוקעים`
+    : `ניר הנדסה — ${warn.length} מסמכים פוקעים תוך ${daysWarn} ימים`;
+
+  // ── בניית גוף המייל ──
+  const lines = ['שלום,','','להלן רשימת המסמכים הדורשים טיפול:',''];
+  if(crit.length > 0){
+    lines.push('קריטי — פוקעים בקרוב מאוד:');
+    crit.forEach(r=>{
+      const when = r.remaining===0 ? 'היום!' : `בעוד ${r.remaining} ימים`;
+      lines.push(`  • ${r.client} — ${r.docType} | תוקף: ${r.expiry} (${when})`);
+      if(r.location) lines.push(`    מיקום: ${r.location}`);
+    });
+    lines.push('');
   }
+  if(warn.length > 0){
+    lines.push(`פוקעים תוך ${daysWarn} ימים:`);
+    warn.forEach(r=>{
+      const when = r.remaining===0 ? 'היום!' : `בעוד ${r.remaining} ימים`;
+      lines.push(`  • ${r.client} — ${r.docType} | תוקף: ${r.expiry} (${when})`);
+      if(r.location) lines.push(`    מיקום: ${r.location}`);
+    });
+  }
+  lines.push('','— מערכת מעקב מסמכים, ניר הנדסה');
+
+  const mailto = `mailto:${emails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+
+  closeNotifModal();
+  hideNotifBanner();
+  window.open(mailto, '_self');
+  localStorage.setItem(NOTIF_LAST_SENT_KEY, String(Date.now()));
+  updateNotifBadge();
+  showToast('📧 נפתח חלון מייל — לחץ שלח לסיום');
 }
 
 function updateNotifBadge(){
@@ -1195,12 +1211,29 @@ function updateNotifBadge(){
   }
 }
 
-async function autoNotifCheck(){
+function autoNotifCheck(){
   const s = loadNotifSettings();
   if(!s.auto || !(s.emails||'').trim()) return;
   const last = parseInt(localStorage.getItem(NOTIF_LAST_SENT_KEY)||'0');
   if(Date.now()-last < 20*60*60*1000) return; // פחות מ-20 שעות — דלג
-  await sendNotificationsNow();
+  const daysWarn = s.daysWarn!=null ? s.daysWarn : 90;
+  const {warn} = getDocsForNotif(daysWarn, 0);
+  if(!warn.length) return;
+  showNotifBanner(warn.length, daysWarn);
+}
+
+function showNotifBanner(count, days){
+  if(document.getElementById('notif-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'notif-banner';
+  b.style.cssText = 'position:fixed;bottom:0;right:0;left:0;z-index:400;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;font-family:Heebo,sans-serif;font-size:.85rem;box-shadow:0 -2px 12px rgba(0,0,0,.15);direction:rtl';
+  b.innerHTML = `<span style="font-size:1.1rem">🔔</span><span style="flex:1"><strong>${count} מסמכים</strong> פוקעים תוך ${days} ימים — שלח תזכורת עכשיו?</span><button onclick="sendNotificationsNow()" style="background:#fff;color:#ea580c;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;font-size:.82rem">📧 שלח מייל</button><button onclick="hideNotifBanner()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:.85rem">✕</button>`;
+  document.body.appendChild(b);
+}
+
+function hideNotifBanner(){
+  const b = document.getElementById('notif-banner');
+  if(b) b.remove();
 }
 document.getElementById('th-expiry').classList.add('sorted');
 
@@ -1314,7 +1347,7 @@ function toggleArchive(){
       </div>
       <div class="notif-field notif-inline">
         <input type="checkbox" id="notif-auto">
-        <label for="notif-auto">שלח התראה אוטומטית פעם ביום עם טעינת הדשבורד</label>
+        <label for="notif-auto">הצג תזכורת אוטומטית פעם ביום בטעינת הדשבורד</label>
       </div>
       <div id="notif-preview" style="display:none" class="notif-preview">
         <div id="notif-preview-text"></div>
